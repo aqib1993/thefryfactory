@@ -5,7 +5,6 @@ const KITCHEN_TAGLINE = "Cloud Kitchen · Fresh · Fast · Delivered";
 const ADMIN_PIN = "22041993";
 const WHATSAPP_NUMBER = "923208203031";
 const DELIVERY_CHARGE = 150;
-
 const Rs = (n) => `Rs. ${Number(n).toLocaleString()}`;
 
 const timeAgo = (iso) => {
@@ -110,13 +109,21 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(null);
-  const [orders, setOrders] = useState(SAMPLE_ORDERS);
+  const [orders, setOrders] = useState(() => {
+    const saved = localStorage.getItem("kitchen_orders");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [oFilter, setOFilter] = useState("all");
   const [form, setForm] = useState({ name: "", phone: "", address: "", type: "delivery", notes: "" });
   const [formErr, setFormErr] = useState({});
   const [, tick] = useState(0);
 
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    localStorage.setItem("kitchen_orders", JSON.stringify(orders));
+  }, [orders]);
+
 
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -139,6 +146,31 @@ export default function App() {
     if (form.type === "delivery" && !form.address.trim()) e.address = "Required for delivery";
     setFormErr(e);
     return !Object.keys(e).length;
+  };
+
+
+  const updateOrderStatus = (id, newStatus) => {
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === id
+          ? { ...order, status: newStatus }
+          : order
+      )
+    );
+  };
+
+  const cancelOrder = (id) => {
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === id
+          ? { ...order, status: "cancelled" }
+          : order
+      )
+    );
+  };
+
+  const deleteOrder = (id) => {
+    setOrders(prev => prev.filter(order => order.id !== id));
   };
 
   const placeOrder = () => {
@@ -171,6 +203,53 @@ export default function App() {
   const filtOrders = oFilter === "all" ? orders : orders.filter(o => o.status === oFilter);
 
   const cartItem = (id) => cart.find(c => c.id === id);
+
+  const cardStyle = {
+    background: "#16110c",
+    border: "1px solid #2e2518",
+    borderRadius: 12,
+    padding: 16
+  };
+
+
+  const todayRevenue = orders
+    .filter(o => o.status !== "cancelled")
+    .reduce((s, o) => s + o.total, 0);
+
+  const deliveredOrders = orders.filter(o => o.status === "delivered");
+
+  const avgOrderValue =
+    deliveredOrders.length > 0
+      ? Math.round(
+          deliveredOrders.reduce((s, o) => s + o.total, 0) / deliveredOrders.length
+        )
+      : 0;
+
+  const topSelling = {};
+
+  orders.forEach(order => {
+    order.items.forEach(item => {
+      topSelling[item.name] =
+        (topSelling[item.name] || 0) + item.qty;
+    });
+  });
+
+  const topItem =
+    Object.entries(topSelling).sort((a, b) => b[1] - a[1])[0];
+
+  const accounting = {
+    grossSales: orders
+      .filter(o => o.status !== "cancelled")
+      .reduce((s,o)=>s+o.total,0),
+
+    cancelledLoss:
+      orders
+        .filter(o => o.status === "cancelled")
+        .reduce((s,o)=>s+o.total,0),
+
+    deliveryIncome:
+      orders.reduce((s,o)=>s+o.deliveryCharge,0),
+  };
 
   return (
     <>
@@ -246,7 +325,47 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
                 {menuItems.map(item => {
                   const inCart = cartItem(item.id);
-                  return (
+                
+  const todayRevenue = orders
+    .filter(o => o.status !== "cancelled")
+    .reduce((s, o) => s + o.total, 0);
+
+  const deliveredOrders = orders.filter(o => o.status === "delivered");
+
+  const avgOrderValue =
+    deliveredOrders.length > 0
+      ? Math.round(
+          deliveredOrders.reduce((s, o) => s + o.total, 0) / deliveredOrders.length
+        )
+      : 0;
+
+  const topSelling = {};
+
+  orders.forEach(order => {
+    order.items.forEach(item => {
+      topSelling[item.name] =
+        (topSelling[item.name] || 0) + item.qty;
+    });
+  });
+
+  const topItem =
+    Object.entries(topSelling).sort((a, b) => b[1] - a[1])[0];
+
+  const accounting = {
+    grossSales: orders
+      .filter(o => o.status !== "cancelled")
+      .reduce((s,o)=>s+o.total,0),
+
+    cancelledLoss:
+      orders
+        .filter(o => o.status === "cancelled")
+        .reduce((s,o)=>s+o.total,0),
+
+    deliveryIncome:
+      orders.reduce((s,o)=>s+o.deliveryCharge,0),
+  };
+
+  return (
                     <div key={item.id} className="hover-card" style={{ background: "#16110c", border: "1px solid #2e2518", borderRadius: 12, padding: 18, cursor: "pointer", transition: "all 0.2s", position: "relative" }}>
                       {item.popular && <span className="tag" style={{ position: "absolute", top: 14, right: 14, background: "#2d1e05", color: "#f0a030", border: "1px solid #78350f" }}>Popular</span>}
                       <div style={{ marginBottom: 12 }}>
@@ -466,6 +585,40 @@ export default function App() {
                 ))}
               </div>
 
+
+              {/* Analytics Dashboard */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12, marginBottom:20 }}>
+                <div style={cardStyle}>
+                  <div style={{ color:"#8a7a66", marginBottom:6 }}>Today's Revenue</div>
+                  <h2 style={{ color:"#f0a030" }}>{Rs(todayRevenue)}</h2>
+                </div>
+
+                <div style={cardStyle}>
+                  <div style={{ color:"#8a7a66", marginBottom:6 }}>Average Order</div>
+                  <h2 style={{ color:"#93c5fd" }}>{Rs(avgOrderValue)}</h2>
+                </div>
+
+                <div style={cardStyle}>
+                  <div style={{ color:"#8a7a66", marginBottom:6 }}>Total Orders</div>
+                  <h2 style={{ color:"#86efac" }}>{orders.length}</h2>
+                </div>
+
+                <div style={cardStyle}>
+                  <div style={{ color:"#8a7a66", marginBottom:6 }}>Top Selling</div>
+                  <h2 style={{ color:"#fca5a5" }}>{topItem ? topItem[0] : "N/A"}</h2>
+                </div>
+
+                <div style={cardStyle}>
+                  <div style={{ color:"#8a7a66", marginBottom:6 }}>Gross Sales</div>
+                  <h2 style={{ color:"#e9d5ff" }}>{Rs(accounting.grossSales)}</h2>
+                </div>
+
+                <div style={cardStyle}>
+                  <div style={{ color:"#8a7a66", marginBottom:6 }}>Cancelled Loss</div>
+                  <h2 style={{ color:"#f87171" }}>{Rs(accounting.cancelledLoss)}</h2>
+                </div>
+              </div>
+
               {/* Filter tabs */}
               <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
                 {[{ id: "all", l: "All" }, { id: "new", l: "New" }, { id: "accepted", l: "Accepted" }, { id: "preparing", l: "Preparing" }, { id: "ready", l: "Ready" }, { id: "delivered", l: "Delivered" }, { id: "cancelled", l: "Cancelled" }].map(f => (
@@ -486,7 +639,47 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {filtOrders.map(order => {
                     const sc = STATUS[order.status];
-                    return (
+                  
+  const todayRevenue = orders
+    .filter(o => o.status !== "cancelled")
+    .reduce((s, o) => s + o.total, 0);
+
+  const deliveredOrders = orders.filter(o => o.status === "delivered");
+
+  const avgOrderValue =
+    deliveredOrders.length > 0
+      ? Math.round(
+          deliveredOrders.reduce((s, o) => s + o.total, 0) / deliveredOrders.length
+        )
+      : 0;
+
+  const topSelling = {};
+
+  orders.forEach(order => {
+    order.items.forEach(item => {
+      topSelling[item.name] =
+        (topSelling[item.name] || 0) + item.qty;
+    });
+  });
+
+  const topItem =
+    Object.entries(topSelling).sort((a, b) => b[1] - a[1])[0];
+
+  const accounting = {
+    grossSales: orders
+      .filter(o => o.status !== "cancelled")
+      .reduce((s,o)=>s+o.total,0),
+
+    cancelledLoss:
+      orders
+        .filter(o => o.status === "cancelled")
+        .reduce((s,o)=>s+o.total,0),
+
+    deliveryIncome:
+      orders.reduce((s,o)=>s+o.deliveryCharge,0),
+  };
+
+  return (
                       <div key={order.id} className={order.status === "new" ? "pulse-ring" : ""} style={{ background: "#16110c", border: `1px solid ${sc.border}`, borderRadius: 14, overflow: "hidden", transition: "all 0.2s" }}>
                         {/* Order header */}
                         <div style={{ background: sc.bg, padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
@@ -542,7 +735,24 @@ export default function App() {
                             <a href={`https://wa.me/${order.customer.phone.replace(/\D/g, "").replace(/^0/, "92")}?text=${encodeURIComponent(`Hi ${order.customer.name}! Your order ${order.id} from ${KITCHEN_NAME} is ${order.status === "ready" ? "ready for " + (order.customer.type === "delivery" ? "delivery 🚴" : "pickup 🏃") : STATUS[sc.next].label.toLowerCase() + " 👨‍🍳"}. Total: ${Rs(order.total)}.`)}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#0d3320", border: "1px solid #14532d", color: "#86efac", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
                               💬 WhatsApp Customer
                             </a>
+                            
+                            <button
+                              onClick={() => deleteOrder(order.id)}
+                              style={{
+                                background: "#2a0f0f",
+                                border: "1px solid #5a1a1a",
+                                color: "#fca5a5",
+                                borderRadius: 8,
+                                padding: "10px 14px",
+                                fontSize: 13,
+                                cursor: "pointer"
+                              }}
+                            >
+                              🗑 Delete
+                            </button>
+
                             {order.status === "new" && (
+
                               <button onClick={() => cancelOrder(order.id)} style={{ background: "none", border: "1px solid #3d1515", color: "#f87171", borderRadius: 8, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>
                                 Cancel
                               </button>
