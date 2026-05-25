@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 
-const KITCHEN_NAME = "Flame & Fold";
+const KITCHEN_NAME = "The Fry Factory";
 const KITCHEN_TAGLINE = "Cloud Kitchen · Fresh · Fast · Delivered";
-const ADMIN_PIN = "1234";
-const WHATSAPP_NUMBER = "923001234567";
+const ADMIN_PIN = "22041993";
+const WHATSAPP_NUMBER = "923208203031";
 const DELIVERY_CHARGE = 150;
 
 const Rs = (n) => `Rs. ${Number(n).toLocaleString()}`;
