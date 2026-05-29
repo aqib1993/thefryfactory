@@ -1,0 +1,6 @@
+{
+  "name": "The Fry Factory",
+  "description": "Interactive online ordering dashboard for The Fry Factory cloud kitchen with order flow management and direct catalog controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
