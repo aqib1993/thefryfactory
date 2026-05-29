@@ -6,6 +6,7 @@ const ADMIN_PIN = "22041993";
 const WHATSAPP_NUMBER = "923208203031";
 const DELIVERY_CHARGE = 150;
 const Rs = (n) => `Rs. ${Number(n).toLocaleString()}`;
+const [ownerNotification, setOwnerNotification] = useState(null);
 
 const timeAgo = (iso) => {
   const m = Math.floor((Date.now() - new Date(iso)) / 60000);
@@ -53,28 +54,10 @@ const STATUS = {
   cancelled: { label: "Cancelled", bg: "#1f1f1f", border: "#444", text: "#6b7280", next: null },
 };
 
-const SAMPLE_ORDERS = [
-  {
-    id: "ORD-001", num: 1,
-    customer: { name: "Ahmed Khan", phone: "0300-1234567", address: "Block 5, Gulshan-e-Iqbal, Karachi", type: "delivery", notes: "Please ring the doorbell" },
-    items: [{ name: "Classic Smash Burger", price: 450, qty: 2 }, { name: "Crispy Fries", price: 180, qty: 2 }],
-    total: 1260, deliveryCharge: 150, status: "new", time: new Date(Date.now() - 3 * 60000).toISOString(),
-  },
-  {
-    id: "ORD-002", num: 2,
-    customer: { name: "Sara Malik", phone: "0321-9876543", address: "DHA Phase 4, Karachi", type: "delivery", notes: "" },
-    items: [{ name: "Chicken Biryani", price: 350, qty: 2 }, { name: "Cold Drink (Can)", price: 80, qty: 2 }],
-    total: 860, deliveryCharge: 150, status: "preparing", time: new Date(Date.now() - 22 * 60000).toISOString(),
-  },
-  {
-    id: "ORD-003", num: 3,
-    customer: { name: "Ali Hassan", phone: "0333-5555555", address: "", type: "pickup", notes: "Call when ready" },
-    items: [{ name: "Family Deal", price: 1800, qty: 1 }],
-    total: 1800, deliveryCharge: 0, status: "ready", time: new Date(Date.now() - 40 * 60000).toISOString(),
-  },
-];
 
-let orderCounter = 4;
+const generateOrderId = () => {
+  return `ORD-${Date.now()}`;
+};
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap');
@@ -177,13 +160,31 @@ export default function App() {
     if (!validate()) return;
     const dc = form.type === "delivery" ? DELIVERY_CHARGE : 0;
     const order = {
-      id: `ORD-00${orderCounter}`, num: orderCounter++,
+      id: generateOrderId(), num: Date.now(),
       customer: { ...form },
       items: cart.map(c => ({ name: c.name, price: c.price, qty: c.qty })),
       total: cartTotal + dc, deliveryCharge: dc,
       status: "new", time: new Date().toISOString(),
     };
-    setOrders(p => [order, ...p]);
+    const ownerMsg = `
+🔔 NEW ORDER RECEIVED
+
+Order ID: ${order.id}
+
+Customer: ${order.customer.name}
+Phone: ${order.customer.phone}
+
+Type: ${order.customer.type}
+
+Total: ${Rs(order.total)}
+
+Items:
+${order.items.map(i => `${i.qty}x ${i.name}`).join("\n")}
+`;
+
+setOwnerNotification(ownerMsg);
+
+setOrders(p => [order, ...p]);
     setConfirmed(order);
     setCart([]);
     setCheckoutOpen(false);
@@ -191,12 +192,6 @@ export default function App() {
     setForm({ name: "", phone: "", address: "", type: "delivery", notes: "" });
   };
 
-  const buildWA = (order) => {
-    const lines = order.items.map(i => `  • ${i.qty}x ${i.name} — ${Rs(i.price * i.qty)}`).join("\n");
-    const dc = order.deliveryCharge > 0 ? `\nDelivery: ${Rs(order.deliveryCharge)}` : "";
-    const msg = `🔔 NEW ORDER — ${order.id}\n\nCustomer: ${order.customer.name}\nPhone: ${order.customer.phone}\nOrder Type: ${order.customer.type === "delivery" ? "🚴 Delivery" : "🏃 Pickup"}${order.customer.type === "delivery" ? `\nAddress: ${order.customer.address}` : ""}\n\nItems:\n${lines}${dc}\n💰 Total: ${Rs(order.total)}${order.customer.notes ? `\n\n📝 Notes: ${order.customer.notes}` : ""}`;
-    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-  };
 
   const newCount = orders.filter(o => o.status === "new").length;
   const menuItems = cat === "all" ? MENU : MENU.filter(i => i.cat === cat);
@@ -539,9 +534,21 @@ export default function App() {
                     </div>
                   </div>
 
-                  <a href={buildWA(confirmed)} target="_blank" rel="noreferrer" style={{ display: "block", background: "#25d366", color: "#fff", borderRadius: 10, padding: "13px 24px", fontSize: 15, fontWeight: 600, textDecoration: "none", marginBottom: 12 }}>
-                    📲 Send Order to Kitchen via WhatsApp
-                  </a>
+                <div
+  style={{
+    background:"#0d3320",
+    border:"1px solid #14532d",
+    color:"#86efac",
+    borderRadius:10,
+    padding:"14px",
+    marginBottom:12,
+    textAlign:"center"
+  }}
+>
+  ✅ Your order has been received successfully.
+  <br/>
+  Our kitchen team has been notified.
+</div>
                   <button className="btn-ghost" style={{ width: "100%" }} onClick={() => setConfirmed(null)}>
                     Continue Browsing Menu
                   </button>
@@ -732,9 +739,7 @@ export default function App() {
                             <button className="btn-amber" style={{ fontSize: 13, padding: "10px 20px" }} onClick={() => updateOrderStatus(order.id, sc.next)}>
                               {sc.nextLabel}
                             </button>
-                            <a href={`https://wa.me/${order.customer.phone.replace(/\D/g, "").replace(/^0/, "92")}?text=${encodeURIComponent(`Hi ${order.customer.name}! Your order ${order.id} from ${KITCHEN_NAME} is ${order.status === "ready" ? "ready for " + (order.customer.type === "delivery" ? "delivery 🚴" : "pickup 🏃") : STATUS[sc.next].label.toLowerCase() + " 👨‍🍳"}. Total: ${Rs(order.total)}.`)}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#0d3320", border: "1px solid #14532d", color: "#86efac", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                              💬 WhatsApp Customer
-                            </a>
+                       
                             
                             <button
                               onClick={() => deleteOrder(order.id)}
