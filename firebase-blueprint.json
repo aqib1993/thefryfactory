@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "An individual food item available on the menu catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the menu item" },
+        "name": { "type": "string", "description": "Display name of the dish" },
+        "desc": { "type": "string", "description": "Short description of ingredients" },
+        "cat": { "type": "string", "description": "Associated category ID reference" },
+        "price": { "type": "number", "description": "Cost of the item in Rs." },
+        "popular": { "type": "boolean", "description": "Show a popular badge on storefront" },
+        "outOfStock": { "type": "boolean", "description": "Marked if items are temporarily depleted" }
+      },
+      "required": ["id", "name", "cat", "price"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A group tab to organize similar dishes together",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique category identifier key" },
+        "label": { "type": "string", "description": "Display label name including emojis" }
+      },
+      "required": ["id", "label"]
+    },
+    "KitchenConfig": {
+      "title": "KitchenConfig",
+      "description": "Cloud kitchen configurations including name and contact details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tagline": { "type": "string" },
+        "adminPin": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "deliveryCharge": { "type": "number" },
+        "minOrder": { "type": "number" }
+      },
+      "required": ["name", "adminPin", "whatsappNumber", "deliveryCharge", "minOrder"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "An order submitted by a customer for delivery or pickup",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customer": { "type": "object" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "deliveryCharge": { "type": "number" },
+        "status": { "type": "string", "enum": ["new", "accepted", "preparing", "ready", "delivered", "cancelled"] },
+        "time": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customer", "items", "total", "deliveryCharge", "status", "time"]
+    }
+  },
+  "firestore": {
+    "/configs/kitchen": {
+      "schema": { "$ref": "KitchenConfig" },
+      "description": "Single config document defining the main storefront name and properties"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "Category" },
+      "description": "Collection of categories that items are cataloged in"
+    },
+    "/menu/{menuItemId}": {
+      "schema": { "$ref": "MenuItem" },
+      "description": "Collection of all menu foods listed in the active catalog"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "Order" },
+      "description": "Transaction log collection of physical orders from the customer storefront"
+    }
+  }
+}
